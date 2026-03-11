@@ -560,7 +560,15 @@ const syncDriverPendingRides = async (session: SessionData, options?: { force?: 
   }
 
   driverBackfillInFlight = (async () => {
-    const response = await request<{ rides?: BackendRide[] }>("/ride/pending-for-captain");
+    const qs = new URLSearchParams();
+    if (driverLocationStatus !== "enabled") {
+      qs.set("ignoreLocation", "1");
+    }
+
+    const endpoint = qs.toString()
+      ? `/ride/pending-for-captain?${qs.toString()}`
+      : "/ride/pending-for-captain";
+    const response = await request<{ rides?: BackendRide[] }>(endpoint);
     const pendingRides = (response.rides || []).filter((ride) => ride.status === "pending");
     driverRequestStore = sortNewest(pendingRides);
     driverBackfillFetchedAt = Date.now();

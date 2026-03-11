@@ -470,6 +470,7 @@ module.exports.getPendingRidesForCaptain = async (req, res) => {
 
   const queryRadius = Number(req.query.radius || 4);
   const radiusKm = Number.isFinite(queryRadius) && queryRadius > 0 ? queryRadius : 4;
+  const ignoreLocation = String(req.query.ignoreLocation || "").trim() === "1";
 
   try {
     await rideService.expirePendingRideSearches();
@@ -497,7 +498,7 @@ module.exports.getPendingRidesForCaptain = async (req, res) => {
       declinedByCaptains: { $nin: [req.captain._id] },
     };
 
-    const ridesQuery = hasUsableCaptainLocation
+    const ridesQuery = hasUsableCaptainLocation && !ignoreLocation
       ? {
           ...baseRideQuery,
           $or: [
