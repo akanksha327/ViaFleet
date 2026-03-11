@@ -428,13 +428,25 @@ module.exports.cancelRide = async (req, res) => {
     ride.status = "cancelled";
     await ride.save();
 
-    const pickupCoordinates = await mapService.getAddressCoordinate(ride.pickup);
-    const captainsInRadius = await mapService.getCaptainsInTheRadius(
-      pickupCoordinates.ltd,
-      pickupCoordinates.lng,
-      4,
-      ride.vehicle
-    );
+    const pickupCoordinates = Array.isArray(ride.pickupLocation?.coordinates) &&
+      ride.pickupLocation.coordinates.length === 2
+      ? {
+          lng: Number(ride.pickupLocation.coordinates[0]),
+          ltd: Number(ride.pickupLocation.coordinates[1]),
+        }
+      : null;
+
+    const captainsInRadius =
+      pickupCoordinates &&
+      Number.isFinite(pickupCoordinates.ltd) &&
+      Number.isFinite(pickupCoordinates.lng)
+        ? await mapService.getCaptainsInTheRadius(
+            pickupCoordinates.ltd,
+            pickupCoordinates.lng,
+            4,
+            ride.vehicle
+          )
+        : [];
 
     if (ride.user?.socketId) {
       sendMessageToSocketId(ride.user.socketId, {
