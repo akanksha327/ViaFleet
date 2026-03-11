@@ -15,8 +15,8 @@ const DriverMobileNav = () => {
   const navigate = useNavigate();
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-50 border-t border-border bg-card/95 backdrop-blur-sm md:hidden">
-      <div className="grid grid-cols-5 gap-1 px-2 py-2">
+    <nav className="fixed bottom-3 inset-x-3 z-50 md:hidden">
+      <div className="grid grid-cols-5 gap-1 rounded-[1.5rem] border border-border bg-card px-2 py-2 shadow-[0_18px_36px_-28px_hsl(0_0%_0%/0.7)]">
         {driverTabs.map((tab) => {
           const active = location.pathname === tab.path;
           return (
@@ -25,8 +25,8 @@ const DriverMobileNav = () => {
               type="button"
               onClick={() => navigate(tab.path)}
               className={cn(
-                "h-14 rounded-lg flex flex-col items-center justify-center gap-1 transition-colors",
-                active ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-secondary"
+                "h-14 rounded-xl flex flex-col items-center justify-center gap-1 transition-colors",
+                active ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary"
               )}
             >
               <tab.icon size={18} />

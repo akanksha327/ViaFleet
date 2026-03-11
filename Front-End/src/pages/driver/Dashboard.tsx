@@ -66,17 +66,17 @@ const DriverDashboardPage = () => {
       className="space-y-4"
     >
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-        <div className="rounded-xl border border-border bg-card p-4">
+        <div className="rounded-[1.5rem] border border-border bg-card/90 p-4 shadow-[0_22px_44px_-34px_hsl(var(--foreground)/0.45)]">
           <p className="text-xs text-muted-foreground">Today Earnings</p>
           <p className="text-2xl font-display font-bold mt-1">
             <AnimatedCounter value={data.todayEarnings} prefix="Rs. " decimals={2} />
           </p>
         </div>
-        <div className="rounded-xl border border-border bg-card p-4">
+        <div className="rounded-[1.5rem] border border-border bg-card/90 p-4 shadow-[0_22px_44px_-34px_hsl(var(--foreground)/0.45)]">
           <p className="text-xs text-muted-foreground">Available Requests</p>
           <p className="text-2xl font-display font-bold mt-1">{data.requests.length}</p>
         </div>
-        <div className="rounded-xl border border-border bg-card p-4">
+        <div className="rounded-[1.5rem] border border-border bg-card/90 p-4 shadow-[0_22px_44px_-34px_hsl(var(--foreground)/0.45)]">
           <p className="text-xs text-muted-foreground">Online Time</p>
           <p className="text-2xl font-display font-bold mt-1">{data.onlineTime}</p>
         </div>
@@ -84,8 +84,8 @@ const DriverDashboardPage = () => {
 
       <header className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-display font-semibold">Available Rides</h1>
-          <p className="text-sm text-muted-foreground mt-1">Review and accept requests quickly.</p>
+          <h1 className="text-2xl font-display font-semibold">Dispatch Queue</h1>
+          <p className="text-sm text-muted-foreground mt-1">Review requests, compare fares, and respond fast.</p>
         </div>
       </header>
 
@@ -94,7 +94,7 @@ const DriverDashboardPage = () => {
           {data.locationMessage}
         </div>
       ) : data.requests.length === 0 ? (
-        <div className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">
+        <div className="rounded-[1.5rem] border border-border bg-card/90 p-4 text-sm text-muted-foreground">
           No ride requests available at the moment.
         </div>
       ) : (
@@ -105,7 +105,7 @@ const DriverDashboardPage = () => {
               initial={{ opacity: 0, x: 26 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.24, delay: index * 0.05, ease: [0.22, 1, 0.36, 1] }}
-              className="rounded-xl border border-border bg-card p-4"
+              className="rounded-[1.5rem] border border-border bg-card/92 p-4 shadow-[0_24px_48px_-36px_hsl(var(--foreground)/0.45)]"
             >
               <div className="flex items-center justify-between">
                 <div>
@@ -116,11 +116,11 @@ const DriverDashboardPage = () => {
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-lg font-display font-bold text-primary">Rs. {request.fare.toFixed(2)}</p>
+                  <p className="text-lg font-display font-bold text-foreground">Rs. {request.fare.toFixed(2)}</p>
                   <span
                     className={`text-[10px] px-2 py-1 rounded-md ${
                       request.status === "Priority"
-                        ? "bg-primary/14 text-primary"
+                        ? "border border-border bg-secondary text-foreground"
                         : "bg-secondary text-muted-foreground"
                     }`}
                   >
@@ -129,7 +129,7 @@ const DriverDashboardPage = () => {
                 </div>
               </div>
 
-              <div className="mt-3 rounded-lg border border-border bg-secondary px-3 py-2 text-xs text-muted-foreground space-y-1">
+              <div className="mt-3 rounded-2xl border border-border bg-secondary/70 px-3 py-2 text-xs text-muted-foreground space-y-1">
                 <p className="inline-flex items-center gap-1.5">
                   <MapPin size={12} /> {request.pickup}
                 </p>
@@ -147,7 +147,7 @@ const DriverDashboardPage = () => {
                   type="button"
                   disabled={isActionLoading}
                   onClick={() => acceptMutation.mutate(request.id)}
-                  className="h-10 rounded-lg border border-primary bg-primary text-primary-foreground text-sm font-semibold transition-[transform,filter] duration-180 ease-smooth hover:brightness-95 hover:-translate-y-0.5 disabled:opacity-70 disabled:pointer-events-none"
+                  className="h-10 rounded-2xl border border-border bg-primary text-primary-foreground text-sm font-semibold transition-[transform,filter] duration-180 ease-smooth hover:brightness-95 hover:-translate-y-0.5 disabled:opacity-70 disabled:pointer-events-none"
                 >
                   Accept
                 </button>
@@ -155,7 +155,7 @@ const DriverDashboardPage = () => {
                   type="button"
                   disabled={isActionLoading}
                   onClick={() => declineMutation.mutate(request.id)}
-                  className="h-10 rounded-lg border border-border bg-secondary text-sm font-semibold transition-[transform,border-color,color] duration-180 ease-smooth hover:-translate-y-0.5 hover:border-destructive/55 hover:text-destructive disabled:opacity-70 disabled:pointer-events-none"
+                  className="h-10 rounded-2xl border border-border bg-secondary/75 text-sm font-semibold transition-[transform,border-color,color] duration-180 ease-smooth hover:-translate-y-0.5 hover:border-destructive/55 hover:text-destructive disabled:opacity-70 disabled:pointer-events-none"
                 >
                   Decline
                 </button>

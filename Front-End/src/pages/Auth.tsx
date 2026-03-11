@@ -60,7 +60,7 @@ const FloatingInput = ({ icon: Icon, label, type = "text", value, onChange, maxL
         onBlur={() => setFocused(false)}
         maxLength={maxLength}
         className={cn(
-          "w-full h-14 pl-11 pr-12 pt-4 pb-1 rounded-xl bg-secondary/50 border text-foreground text-sm",
+          "w-full h-14 pl-11 pr-12 pt-4 pb-1 rounded-2xl bg-secondary border text-foreground text-sm",
           "outline-none transition-all duration-300",
           focused ? "border-primary glow-emerald" : "border-border"
         )}
@@ -88,7 +88,7 @@ const FloatingSelect = ({
   options: Array<{ value: string; label: string }>;
 }) => {
   const [focused, setFocused] = useState(false);
-  const active = focused || value.length > 0;
+  const hasValue = value.length > 0;
 
   return (
     <div className="relative">
@@ -98,9 +98,9 @@ const FloatingSelect = ({
       <motion.label
         className="absolute left-11 pointer-events-none text-muted-foreground z-10"
         animate={{
-          top: active ? "6px" : "50%",
-          y: active ? 0 : "-50%",
-          fontSize: active ? "10px" : "14px",
+          top: "6px",
+          y: 0,
+          fontSize: "10px",
         }}
         transition={{ type: "spring", stiffness: 300, damping: 20 }}
       >
@@ -112,13 +112,19 @@ const FloatingSelect = ({
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
         className={cn(
-          "w-full h-14 pl-11 pr-4 pt-4 pb-1 rounded-xl bg-secondary/50 border text-foreground text-sm",
+          "w-full h-14 pl-11 pr-4 pt-4 pb-1 rounded-2xl bg-secondary border text-foreground text-sm",
           "outline-none transition-all duration-300 appearance-none",
+          !hasValue && "text-muted-foreground",
           focused ? "border-primary glow-emerald" : "border-border"
         )}
       >
         {options.map((option) => (
-          <option key={option.value} value={option.value}>
+          <option
+            key={option.value}
+            value={option.value}
+            disabled={option.value === ""}
+            className="text-foreground"
+          >
             {option.label}
           </option>
         ))}
@@ -155,8 +161,8 @@ const SocialButton = ({ icon, label, note, disabled = false }: { icon: ReactNode
     whileHover={!disabled ? { scale: 1.03 } : undefined}
     whileTap={!disabled ? { scale: 0.97 } : undefined}
     className={cn(
-      "flex items-center justify-center gap-2 h-12 rounded-xl border border-border bg-secondary/30 text-sm font-medium text-foreground transition-colors flex-1",
-      disabled ? "opacity-70 cursor-not-allowed" : "hover:border-primary/50"
+      "flex items-center justify-center gap-2 h-12 rounded-2xl border border-border bg-secondary text-sm font-medium text-foreground transition-colors flex-1",
+      disabled ? "opacity-70 cursor-not-allowed" : "hover:border-primary/50 hover:bg-muted"
     )}
   >
     <span className="inline-flex items-center justify-center">{icon}</span>
@@ -368,30 +374,28 @@ const Auth = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden grain-texture">
-      {/* Background */}
-      <div className="fixed inset-0 bg-background">
-        {/* Subtle emerald radial ambient glow */}
-        <div className="absolute bottom-1/4 -right-32 w-96 h-96 rounded-full bg-[hsl(var(--neon-emerald-light)/0.06)] blur-[120px]" />
-      </div>
+      <div className="fixed inset-0 bg-background" />
 
       <motion.div
-        initial={{ opacity: 0, y: 30, scale: 0.95 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ type: "spring", stiffness: 200, damping: 20 }}
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.24, ease: "easeOut" }}
         className={cn("relative z-10 w-full", isDriverSignup ? "max-w-3xl" : "max-w-md")}
       >
-        <div className="glass rounded-3xl p-8 glow-emerald-soft">
-          {/* Logo */}
+        <div className="glass rounded-[2rem] p-8">
           <div className="flex items-center justify-center gap-3 mb-8">
-            <div className="w-12 h-12 rounded-2xl gradient-primary flex items-center justify-center">
+            <div className="w-12 h-12 rounded-[1.25rem] bg-primary flex items-center justify-center">
               <Car size={24} className="text-primary-foreground" />
             </div>
-            <h1 className="text-3xl font-display font-bold gradient-text">RideX</h1>
+            <div className="text-center">
+              <h1 className="text-3xl font-display font-bold text-foreground">ViaFleet</h1>
+              <p className="text-[11px] uppercase tracking-[0.28em] text-muted-foreground">Smart City Commute</p>
+            </div>
           </div>
 
           <div className="mb-6">
             <p className="text-xs font-medium text-muted-foreground mb-2 px-1">Continue as</p>
-            <div className="grid grid-cols-2 gap-2 rounded-xl bg-secondary/50 p-1">
+            <div className="grid grid-cols-2 gap-2 rounded-2xl bg-secondary p-1.5">
               {[
                 { id: "rider" as const, label: "Customer (Rider)" },
                 { id: "driver" as const, label: "Driver" },
@@ -401,13 +405,20 @@ const Auth = () => {
                   type="button"
                   onClick={() => setAccountType(type.id)}
                   className={cn(
-                    "h-10 rounded-lg text-sm font-medium transition-colors",
+                    "relative h-11 rounded-xl text-sm font-medium transition-colors",
                     accountType === type.id
-                      ? "bg-primary text-primary-foreground"
-                      : "text-foreground hover:bg-secondary"
+                      ? "text-primary-foreground"
+                      : "text-foreground hover:bg-background"
                   )}
                 >
-                  {type.label}
+                  {accountType === type.id && (
+                    <motion.span
+                      layoutId="account-type-pill"
+                      className="absolute inset-0 rounded-xl bg-primary"
+                      transition={{ type: "spring", stiffness: 320, damping: 28 }}
+                    />
+                  )}
+                  <span className="relative z-10">{type.label}</span>
                 </button>
               ))}
             </div>
@@ -427,7 +438,7 @@ const Auth = () => {
                 <FloatingInput icon={User} label="Full Name" value={name} onChange={setName} />
               )}
               {isDriverSignup && (
-                <div className="rounded-2xl border border-border bg-secondary/20 p-4 space-y-4">
+                <div className="rounded-[1.6rem] border border-border bg-card p-4 space-y-4">
                   <div>
                     <p className="text-sm font-medium text-foreground">Driver onboarding details</p>
                     <p className="text-xs text-muted-foreground mt-1">
@@ -522,7 +533,7 @@ const Auth = () => {
               </MagneticButton>
 
               {showVerification && isLogin && verificationAccountType === accountType && (
-                <div className="rounded-xl border border-border bg-secondary/30 p-3 space-y-3">
+                <div className="rounded-2xl border border-border bg-card p-3 space-y-3">
                   <p className="text-xs text-muted-foreground">
                     Verify <span className="text-foreground">{verificationEmail}</span> by clicking the
                     email link sent to your inbox.
@@ -533,7 +544,7 @@ const Auth = () => {
                       onClick={handleResendVerification}
                       disabled={verificationLoading}
                       className={cn(
-                        "h-10 rounded-xl border border-border bg-secondary/30 text-sm font-medium transition-colors",
+                        "h-10 rounded-2xl border border-border bg-secondary text-sm font-medium transition-colors",
                         verificationLoading ? "opacity-70 pointer-events-none" : "hover:border-primary/50"
                       )}
                     >
@@ -557,17 +568,24 @@ const Auth = () => {
             <SocialButton icon={<FacebookLogo />} label="Facebook" note="Coming soon" disabled />
           </div>
 
-          <div className="flex rounded-xl bg-secondary/50 p-1 mt-6">
+          <div className="flex rounded-2xl bg-secondary p-1.5 mt-6">
             {["Login", "Sign Up"].map((tab, i) => (
               <button
                 key={tab}
                 onClick={() => setIsLogin(i === 0)}
                 className={cn(
-                  "relative flex-1 py-2.5 text-sm font-medium rounded-lg transition-colors",
-                  (i === 0 ? isLogin : !isLogin) ? "gradient-primary text-primary-foreground" : "text-foreground"
+                  "relative flex-1 py-2.5 text-sm font-medium rounded-xl transition-colors",
+                  (i === 0 ? isLogin : !isLogin) ? "text-primary-foreground" : "text-foreground"
                 )}
               >
-                {tab}
+                {(i === 0 ? isLogin : !isLogin) && (
+                  <motion.span
+                    layoutId="auth-mode-pill"
+                    className="absolute inset-0 rounded-xl bg-primary"
+                    transition={{ type: "spring", stiffness: 320, damping: 28 }}
+                  />
+                )}
+                <span className="relative z-10">{tab}</span>
               </button>
             ))}
           </div>

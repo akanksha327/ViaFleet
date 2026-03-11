@@ -33,15 +33,15 @@ const RiderLayout = () => {
 
   return (
     <div className="rider-shell min-h-screen">
-      <header className="sticky top-0 z-[1000] border-b border-border/60 bg-background/90 backdrop-blur-sm">
+      <header className="sticky top-0 z-[1000] border-b border-border bg-card">
         <div className="max-w-6xl mx-auto px-4 lg:px-6 py-3 flex items-center justify-between gap-4">
           <div className="inline-flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center">
+            <div className="h-10 w-10 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center">
               <Car size={20} />
             </div>
             <div>
-              <p className="font-display font-bold text-lg leading-none">RideX</p>
-              <p className="text-xs text-muted-foreground">Customer</p>
+              <p className="font-display font-bold text-lg leading-none">ViaFleet</p>
+              <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">Rider Desk</p>
             </div>
           </div>
           <div className="inline-flex items-center gap-2">
@@ -49,7 +49,7 @@ const RiderLayout = () => {
             <button
               type="button"
               onClick={handleSignOut}
-              className="h-10 px-3 rounded-xl border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors inline-flex items-center gap-2"
+              className="h-10 px-3 rounded-2xl border border-border bg-secondary text-muted-foreground hover:text-foreground hover:bg-muted transition-colors inline-flex items-center gap-2"
             >
               <LogOut size={15} />
               <span className="hidden sm:inline text-sm font-medium">Sign Out</span>

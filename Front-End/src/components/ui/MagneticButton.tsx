@@ -21,8 +21,10 @@ const MagneticButton = ({ className, variant = "primary", loading, children, ...
   };
 
   const variants = {
-    primary: "bg-primary text-primary-foreground hover:bg-primary/90",
-    outline: "border border-border bg-transparent text-foreground hover:border-primary hover:text-primary",
+    primary:
+      "bg-primary text-primary-foreground hover:bg-primary/90",
+    outline:
+      "border border-border bg-card/70 text-foreground hover:border-primary/60 hover:text-primary hover:bg-secondary/80",
     success: "bg-[hsl(var(--success))] text-primary-foreground hover:brightness-95",
     danger: "bg-destructive text-destructive-foreground hover:brightness-95",
   };
@@ -31,19 +33,20 @@ const MagneticButton = ({ className, variant = "primary", loading, children, ...
     <motion.button
       ref={ref}
       className={cn(
-        "relative overflow-hidden rounded-xl px-6 py-3 font-semibold transition-colors duration-150",
+        "relative overflow-hidden rounded-2xl px-6 py-3 font-semibold tracking-[0.01em] transition-[transform,filter,border-color,color,background-color] duration-200 ease-smooth",
         variants[variant],
         loading && "opacity-70 pointer-events-none",
         className
       )}
+      whileHover={{ y: -1 }}
       whileTap={{ scale: 0.99 }}
       onClick={handleClick}
-      transition={{ duration: 0.12, ease: "easeOut" }}
+      transition={{ duration: 0.18, ease: [0.2, 0.8, 0.2, 1] }}
       {...(props as any)}
     >
       {ripple && (
         <span
-          className="absolute rounded-full bg-foreground/20 animate-ripple"
+          className="absolute rounded-full bg-background/25 animate-ripple"
           style={{ left: ripple.x, top: ripple.y, width: 10, height: 10, transform: "translate(-50%, -50%)" }}
         />
       )}

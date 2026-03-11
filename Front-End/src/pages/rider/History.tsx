@@ -123,7 +123,7 @@ const RiderHistoryPage = () => {
       setDownloadingReceiptId(rideId);
       const receipt = await riderApi.getReceipt(rideId);
       const receiptText = [
-        `RideX Receipt #${receipt.receiptNo}`,
+        `ViaFleet Receipt #${receipt.receiptNo}`,
         `Issued: ${new Date(receipt.issuedAt).toLocaleString()}`,
         `Ride Date: ${new Date(receipt.rideDate).toLocaleString()}`,
         "",

@@ -10,7 +10,7 @@ interface GlassCardProps extends HTMLMotionProps<"div"> {
 const GlassCard = ({ className, interactive = false, glow = "none", children, ...props }: GlassCardProps) => (
   <motion.div
     className={cn(
-      "glass rounded-2xl p-6",
+      "glass card-light-reflection rounded-[1.6rem] p-6",
       glow === "emerald" && "glow-emerald",
       glow === "gold" && "glow-gold",
       className

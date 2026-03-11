@@ -110,6 +110,15 @@ const getFallbackApiBases = (baseUrl: string) => {
       if (browserHost && browserHost !== parsed.hostname) {
         candidates.push(build(browserHost));
       }
+
+      const isBrowserLocalHost =
+        browserHost === "localhost" || browserHost === "127.0.0.1";
+      if (isBrowserLocalHost) {
+        candidates.push(`http://localhost:3000${pathName}`);
+        candidates.push(`http://127.0.0.1:3000${pathName}`);
+        candidates.push(`http://localhost:4000${pathName}`);
+        candidates.push(`http://127.0.0.1:4000${pathName}`);
+      }
     }
 
     const isLocalHost =

@@ -1090,7 +1090,7 @@ const RiderDashboardPage = () => {
       className="space-y-4"
     >
       <div className="grid grid-cols-1 xl:grid-cols-[1.2fr_1fr] gap-4">
-        <div className="relative isolate rounded-3xl border border-border bg-card overflow-hidden h-[290px] md:h-[360px] shadow-[0_22px_50px_-40px_hsl(var(--foreground)/0.35)]">
+        <div className="relative isolate rounded-[2rem] border border-border bg-card/90 overflow-hidden h-[290px] md:h-[360px] shadow-[0_30px_60px_-42px_hsl(var(--foreground)/0.45)]">
           <div className="absolute inset-0">
             <RiderMap
               currentLocation={currentMapLocation}
@@ -1099,11 +1099,11 @@ const RiderDashboardPage = () => {
               onRouteDistanceChange={setRouteDistanceKm}
             />
           </div>
-          <div className="absolute top-4 left-4 inline-flex items-center gap-2 rounded-xl border border-border bg-background/90 px-3 py-2 backdrop-blur-sm">
+          <div className="absolute top-4 left-4 inline-flex items-center gap-2 rounded-2xl border border-border bg-background/88 px-3 py-2 backdrop-blur-md">
             <Navigation size={14} className="text-primary" />
-            <span className="text-xs text-muted-foreground">Live taxi map</span>
+            <span className="text-xs text-muted-foreground">Live route board</span>
           </div>
-          <div className="absolute bottom-4 left-4 right-4 rounded-xl border border-border bg-background/90 px-3 py-2 backdrop-blur-sm flex items-center justify-between gap-3">
+          <div className="absolute bottom-4 left-4 right-4 rounded-2xl border border-border bg-background/88 px-3 py-2 backdrop-blur-md flex items-center justify-between gap-3">
             <span className="text-xs text-muted-foreground inline-flex items-center gap-1.5">
               <MapPin size={12} /> Route distance
             </span>
@@ -1111,19 +1111,19 @@ const RiderDashboardPage = () => {
           </div>
         </div>
 
-        <div className="rounded-3xl border border-border bg-card p-4 md:p-5 shadow-[0_24px_56px_-44px_hsl(var(--foreground)/0.4)] space-y-4">
+        <div className="rounded-[2rem] border border-border bg-card/92 p-4 md:p-5 shadow-[0_30px_64px_-46px_hsl(var(--foreground)/0.45)] space-y-4">
           <div className="space-y-1">
-            <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Ride Now</p>
+            <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">Quick Dispatch</p>
             <h2 className="text-2xl font-display font-semibold leading-tight">
-              Fast booking with nearby taxi types
+              Plan your route and lock a ride in one flow
             </h2>
             <p className="text-sm text-muted-foreground">
-              Pick your taxi category and book from what is available near your location.
+              Choose from nearby categories, compare timing, and confirm when the route looks right.
             </p>
           </div>
 
           <div className="grid grid-cols-2 gap-2">
-            <div className="rounded-2xl border border-border bg-secondary/60 p-3">
+            <div className="rounded-[1.4rem] border border-border bg-secondary/60 p-3">
               <p className="text-[11px] text-muted-foreground uppercase tracking-[0.14em]">Selected Type</p>
               <p className="mt-1 inline-flex items-center gap-2 text-sm font-semibold">
                 <SelectedRideIcon size={15} className="text-primary" />
@@ -1131,7 +1131,7 @@ const RiderDashboardPage = () => {
               </p>
               <p className="mt-1 text-[11px] text-muted-foreground">{selectedRideEta}</p>
             </div>
-            <div className="rounded-2xl border border-border bg-secondary/60 p-3">
+            <div className="rounded-[1.4rem] border border-border bg-secondary/60 p-3">
               <p className="text-[11px] text-muted-foreground uppercase tracking-[0.14em]">Nearby Now</p>
               <p className="mt-1 text-sm font-semibold">
                 {selectedRideNearbyCount === null ? "--" : selectedRideNearbyCount}
@@ -1311,12 +1311,12 @@ const RiderDashboardPage = () => {
         </div>
       </div>
 
-      <div className="rounded-3xl border border-border bg-card p-4 md:p-5 shadow-[0_24px_56px_-44px_hsl(var(--foreground)/0.4)] space-y-3">
+      <div className="rounded-[2rem] border border-border bg-card/92 p-4 md:p-5 shadow-[0_30px_64px_-46px_hsl(var(--foreground)/0.45)] space-y-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h3 className="text-lg font-display font-semibold">Taxi categories near you</h3>
+            <h3 className="text-lg font-display font-semibold">Available ride classes</h3>
             <p className="text-sm text-muted-foreground">
-              Switch between available bike, auto, sedan, SUV, and premium rides.
+              Compare bike, auto, sedan, SUV, and premium options before you confirm.
             </p>
           </div>
           <div className="rounded-xl border border-border bg-secondary/60 px-3 py-2">
@@ -1357,17 +1357,17 @@ const RiderDashboardPage = () => {
                 type="button"
                 onClick={() => setSelectedRide(ride.id)}
                 className={cn(
-                  "rounded-2xl border p-3 text-left transition-[transform,background-color,color,border-color] duration-250 ease-smooth hover:-translate-y-[1px]",
+                  "rounded-[1.55rem] border p-3 text-left transition-[transform,background-color,color,border-color,box-shadow] duration-250 ease-smooth hover:-translate-y-[2px]",
                   ride.id === selectedRide
-                    ? "border-primary bg-primary/12"
-                    : "border-border bg-background hover:bg-secondary"
+                    ? "border-border bg-secondary/90 shadow-[0_18px_30px_-24px_hsl(0_0%_0%/0.6)]"
+                    : "border-border bg-background/80 hover:bg-secondary/80"
                 )}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div
                     className={cn(
                       "h-10 w-10 rounded-xl inline-flex items-center justify-center",
-                      ride.id === selectedRide ? "bg-primary text-primary-foreground" : "bg-secondary text-primary"
+                      ride.id === selectedRide ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground"
                     )}
                   >
                     <RideIcon size={18} />
@@ -1400,9 +1400,9 @@ const RiderDashboardPage = () => {
         </div>
       </div>
 
-      <div className="rounded-3xl border border-border bg-card p-4 md:p-5 shadow-[0_24px_56px_-44px_hsl(var(--foreground)/0.4)] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className="rounded-[2rem] border border-border bg-card/92 p-4 md:p-5 shadow-[0_30px_64px_-46px_hsl(var(--foreground)/0.45)] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <p className="text-xs text-muted-foreground uppercase tracking-[0.14em]">Estimated Fare</p>
+          <p className="text-xs text-muted-foreground uppercase tracking-[0.2em]">Fare Snapshot</p>
           {estimatedFare !== null ? (
             <div>
               <p className="text-2xl font-display font-bold">

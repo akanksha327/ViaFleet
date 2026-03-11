@@ -275,7 +275,7 @@ const RiderProfilePage = () => {
       </div>
 
       <div className="rounded-3xl border border-border bg-card divide-y divide-border">
-        {["Privacy Policy", "Terms of Service", "About RideX"].map((item) => (
+        {["Privacy Policy", "Terms of Service", "About ViaFleet"].map((item) => (
           <button
             key={item}
             type="button"

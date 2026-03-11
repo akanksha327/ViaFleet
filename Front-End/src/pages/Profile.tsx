@@ -119,7 +119,7 @@ const Profile = () => {
 
       <motion.div variants={staggerItem}>
         <GlassCard className="!p-0 divide-y divide-border">
-          {["Help & Support", "Privacy Policy", "Terms of Service", "About RideX"].map((item) => (
+          {["Help & Support", "Privacy Policy", "Terms of Service", "About ViaFleet"].map((item) => (
             <motion.button
               key={item}
               whileHover={{ x: 4 }}

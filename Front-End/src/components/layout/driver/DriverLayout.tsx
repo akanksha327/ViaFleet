@@ -36,20 +36,20 @@ const DriverLayout = () => {
       <DriverSidebar />
 
       <div className="flex-1 min-w-0">
-        <header className="md:sticky md:top-0 z-30 border-b border-border/80 bg-background/95 backdrop-blur-sm">
+        <header className="md:sticky md:top-0 z-30 border-b border-border bg-card">
           <div className="px-4 lg:px-6 py-3 flex items-center justify-between">
             <div>
               <p className="font-display font-bold text-lg">Driver Workspace</p>
-              <p className="text-xs text-muted-foreground">High-focus operations view</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Dispatch Monitor</p>
             </div>
             <div className="inline-flex items-center gap-2">
-              <span className="text-xs font-medium text-primary bg-primary/12 px-2.5 py-1 rounded-md border border-primary/20">
+              <span className="text-xs font-medium text-primary bg-primary/12 px-2.5 py-1 rounded-full border border-primary/20">
                 Online
               </span>
               <button
                 type="button"
                 onClick={handleSignOut}
-                className="md:hidden h-8 px-2.5 rounded-md border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors inline-flex items-center gap-1.5 text-xs font-medium"
+                className="md:hidden h-8 px-2.5 rounded-full border border-border bg-secondary text-muted-foreground hover:text-foreground hover:bg-muted transition-colors inline-flex items-center gap-1.5 text-xs font-medium"
               >
                 <LogOut size={12} />
                 Sign Out

@@ -30,12 +30,12 @@ const DriverSidebar = () => {
   return (
     <aside className="hidden md:flex w-72 shrink-0 border-r border-border bg-card min-h-screen sticky top-0">
       <div className="w-full p-4 flex flex-col">
-        <div className="px-3 py-3 mb-4 rounded-xl bg-secondary border border-border">
-          <p className="font-display font-bold text-lg">RideX Driver</p>
-          <p className="text-xs text-muted-foreground">Operations Console</p>
+        <div className="px-4 py-4 mb-5 rounded-[1.1rem] border border-border bg-secondary">
+          <p className="font-display font-bold text-lg">ViaFleet Driver</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Operations Panel</p>
         </div>
 
-        <nav className="space-y-1 flex-1">
+        <nav className="space-y-1.5 flex-1">
           {driverNavItems.map((item) => {
             const active = location.pathname === item.path;
             return (
@@ -44,10 +44,13 @@ const DriverSidebar = () => {
                 type="button"
                 onClick={() => navigate(item.path)}
                 className={cn(
-                  "w-full h-11 px-3 rounded-xl text-sm font-medium inline-flex items-center gap-2.5 transition-[transform,background-color,color] duration-200 ease-smooth",
-                  active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                  "w-full h-11 px-3 rounded-xl text-sm font-medium inline-flex items-center gap-2.5 transition-colors duration-200",
+                  active
+                    ? "bg-secondary text-foreground"
+                    : "text-muted-foreground hover:text-foreground hover:bg-secondary"
                 )}
               >
+                {active && <span className="mr-0.5 h-4 w-0.5 rounded-full bg-foreground/80" />}
                 <item.icon size={16} />
                 <span>{item.label}</span>
               </button>

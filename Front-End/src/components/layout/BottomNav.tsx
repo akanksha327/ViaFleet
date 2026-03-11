@@ -1,4 +1,3 @@
-import { motion } from "framer-motion";
 import { Home, Car, Clock, Star, User } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -16,36 +15,30 @@ const BottomNav = () => {
   const navigate = useNavigate();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 glass-strong border-t border-border md:hidden">
-      <div className="flex items-center justify-around py-2 px-2">
+    <nav className="fixed bottom-3 left-3 right-3 z-50 md:hidden">
+      <div className="flex items-center justify-around rounded-[1.5rem] border border-border bg-card px-2 py-2 shadow-[0_18px_36px_-28px_hsl(0_0%_0%/0.7)]">
         {tabs.map((tab) => {
           const active = location.pathname === tab.path;
           return (
             <button
               key={tab.path}
               onClick={() => navigate(tab.path)}
-              className="relative flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors"
+              className="relative flex min-w-[60px] flex-col items-center gap-0.5 px-3 py-2 rounded-xl transition-colors"
             >
-              {active && (
-                <motion.div
-                  layoutId="bottomnav-active"
-                  className="absolute inset-0 gradient-primary rounded-xl opacity-15"
-                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                />
-              )}
               <tab.icon
                 size={20}
                 className={cn(
                   "transition-colors duration-200",
-                  active ? "text-primary" : "text-muted-foreground"
+                  active ? "text-foreground" : "text-muted-foreground"
                 )}
               />
               <span className={cn(
                 "text-[10px] font-medium",
-                active ? "text-primary" : "text-muted-foreground"
+                active ? "text-foreground" : "text-muted-foreground"
               )}>
                 {tab.label}
               </span>
+              {active && <span className="absolute inset-x-3 bottom-1 h-0.5 rounded-full bg-foreground/80" />}
             </button>
           );
         })}
