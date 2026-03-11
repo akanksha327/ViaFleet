@@ -1,4 +1,5 @@
 const moment = require("moment-timezone");
+const mongoose = require("mongoose");
 const BackendLog = require("../models/backend-log.model");
 
 const dbStream = {
@@ -23,9 +24,12 @@ const dbStream = {
         formattedTimestamp: moment().tz("Asia/Kolkata").format("MMM DD hh:mm:ss A"),
       };
       try {
+        if (mongoose.connection.readyState !== 1) {
+          return;
+        }
         await BackendLog.create(log);
-      } catch (error) {
-        console.log("Error occured while adding backend log");
+      } catch {
+        // Avoid noisy log spam in production if the logging collection is unavailable.
       }
     }
   },
