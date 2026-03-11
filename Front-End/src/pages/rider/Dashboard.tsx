@@ -1059,6 +1059,8 @@ const RiderDashboardPage = () => {
       distanceKm: effectiveDistanceKm,
       stops,
       promoCode: appliedPromoCode || undefined,
+      pickupCoords,
+      dropoffCoords,
     });
   };
   const SelectedRideIcon = selectedRideMeta.icon;

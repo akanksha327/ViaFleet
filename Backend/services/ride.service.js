@@ -71,6 +71,20 @@ const normalizeStops = (stops) => {
     .slice(0, 4);
 };
 
+const normalizeCoordinates = (coordinates) => {
+  const latitude = Number(coordinates?.lat ?? coordinates?.ltd);
+  const longitude = Number(coordinates?.lon ?? coordinates?.lng);
+
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return null;
+  }
+
+  return {
+    lat: latitude,
+    lon: longitude,
+  };
+};
+
 const buildSearchFailureUpdate = () => ({
   status: "cancelled",
   cancellationReason: SEARCH_FAILURE_REASON,
@@ -109,9 +123,23 @@ const getFareByDistanceTime = (distanceTime) => {
   };
 };
 
-const getRouteDistanceTime = async (pickup, destination, stops = []) => {
+const getRouteDistanceTime = async (
+  pickup,
+  destination,
+  stops = [],
+  options = {}
+) => {
   const cleanStops = normalizeStops(stops);
   const points = [pickup, ...cleanStops, destination];
+  const pickupCoordinates = normalizeCoordinates(options.pickupCoordinates);
+  const destinationCoordinates = normalizeCoordinates(options.destinationCoordinates);
+
+  if (cleanStops.length === 0 && pickupCoordinates && destinationCoordinates) {
+    return mapService.getDistanceTimeByCoordinates(
+      { ltd: pickupCoordinates.lat, lng: pickupCoordinates.lon },
+      { ltd: destinationCoordinates.lat, lng: destinationCoordinates.lon }
+    );
+  }
 
   if (points.length <= 2) {
     return mapService.getDistanceTime(pickup, destination);
@@ -247,12 +275,12 @@ const buildPaymentRedirectUrls = (rideId, rideStatus) => {
   };
 };
 
-module.exports.getFare = async (pickup, destination, stops = []) => {
+module.exports.getFare = async (pickup, destination, stops = [], options = {}) => {
   if (!pickup || !destination) {
     throw new Error("Pickup and destination are required");
   }
 
-  const distanceTime = await getRouteDistanceTime(pickup, destination, stops);
+  const distanceTime = await getRouteDistanceTime(pickup, destination, stops, options);
   const fare = getFareByDistanceTime(distanceTime);
 
   return { fare, distanceTime };
@@ -264,13 +292,18 @@ module.exports.previewFareWithPromo = async ({
   vehicleType,
   stops = [],
   promoCode,
+  pickupCoordinates,
+  destinationCoordinates,
 }) => {
   if (!pickup || !destination || !vehicleType) {
     throw new Error("Pickup, destination and vehicle type are required");
   }
 
   const cleanStops = normalizeStops(stops);
-  const { fare, distanceTime } = await module.exports.getFare(pickup, destination, cleanStops);
+  const { fare, distanceTime } = await module.exports.getFare(pickup, destination, cleanStops, {
+    pickupCoordinates,
+    destinationCoordinates,
+  });
   const fareBeforeDiscount = Number(fare[vehicleType] || 0);
   const promoResult = await evaluatePromoCode({
     promoCode,
@@ -295,6 +328,8 @@ module.exports.createRide = async ({
   vehicleType,
   stops = [],
   promoCode,
+  pickupCoordinates,
+  destinationCoordinates,
 }) => {
   if (!user || !pickup || !destination || !vehicleType) {
     throw new Error("All fields are required");
@@ -308,13 +343,22 @@ module.exports.createRide = async ({
       vehicleType,
       stops: cleanStops,
       promoCode,
+      pickupCoordinates,
+      destinationCoordinates,
     });
 
-    const pickupCoordinates = await mapService.getAddressCoordinate(pickup);
+    const normalizedPickupCoordinates = normalizeCoordinates(pickupCoordinates);
+    const pickupCoordinatesForRide =
+      normalizedPickupCoordinates
+        ? {
+            lng: normalizedPickupCoordinates.lon,
+            ltd: normalizedPickupCoordinates.lat,
+          }
+        : await mapService.getAddressCoordinate(pickup);
 
     const hasValidPickupCoordinates =
-      Number.isFinite(pickupCoordinates?.lng) &&
-      Number.isFinite(pickupCoordinates?.ltd);
+      Number.isFinite(pickupCoordinatesForRide?.lng) &&
+      Number.isFinite(pickupCoordinatesForRide?.ltd);
 
     const ride = await rideModel.create({
       user,
@@ -322,7 +366,7 @@ module.exports.createRide = async ({
       pickupLocation: hasValidPickupCoordinates
         ? {
             type: "Point",
-            coordinates: [pickupCoordinates.lng, pickupCoordinates.ltd],
+            coordinates: [pickupCoordinatesForRide.lng, pickupCoordinatesForRide.ltd],
           }
         : undefined,
       destination,

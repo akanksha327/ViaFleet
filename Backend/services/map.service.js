@@ -1,6 +1,10 @@
 const axios = require("axios");
 const captainModel = require("../models/captain.model");
 
+const GEOCODE_CACHE_TTL_MS = 15 * 60 * 1000;
+const GEOCODE_CACHE_MAX_ENTRIES = 200;
+const geocodeCache = new Map();
+
 const formatDistanceText = (meters) => {
   if (!Number.isFinite(meters) || meters <= 0) {
     return "0 m";
@@ -20,6 +24,66 @@ const formatDurationText = (seconds) => {
 
   const roundedMinutes = Math.max(1, Math.round(seconds / 60));
   return `${roundedMinutes} min`;
+};
+
+const normalizeCoordinateInput = (coordinates) => {
+  const latitude = Number(coordinates?.lat ?? coordinates?.ltd);
+  const longitude = Number(coordinates?.lon ?? coordinates?.lng);
+
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return null;
+  }
+
+  return {
+    ltd: latitude,
+    lng: longitude,
+  };
+};
+
+const normalizeAddressCacheKey = (address) =>
+  String(address || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+
+const getCachedCoordinates = (address) => {
+  const key = normalizeAddressCacheKey(address);
+  if (!key) {
+    return null;
+  }
+
+  const cached = geocodeCache.get(key);
+  if (!cached) {
+    return null;
+  }
+
+  if (Date.now() - cached.cachedAt > GEOCODE_CACHE_TTL_MS) {
+    geocodeCache.delete(key);
+    return null;
+  }
+
+  return cached.value;
+};
+
+const setCachedCoordinates = (address, coordinates) => {
+  const key = normalizeAddressCacheKey(address);
+  if (!key || !coordinates) {
+    return;
+  }
+
+  geocodeCache.set(key, {
+    value: coordinates,
+    cachedAt: Date.now(),
+  });
+
+  if (geocodeCache.size <= GEOCODE_CACHE_MAX_ENTRIES) {
+    return;
+  }
+
+  const oldestKey = geocodeCache.keys().next().value;
+  if (oldestKey) {
+    geocodeCache.delete(oldestKey);
+  }
 };
 
 const buildLiveCaptainRadiusQuery = (ltd, lng, radius, vehicleType) => {
@@ -72,13 +136,17 @@ module.exports.getAddressCoordinate = async (address) => {
     throw new Error("Address is required");
   }
 
-  return await getAddressCoordinateFromNominatim(address);
+  const cachedCoordinates = getCachedCoordinates(address);
+  if (cachedCoordinates) {
+    return cachedCoordinates;
+  }
+
+  const coordinates = await getAddressCoordinateFromNominatim(address);
+  setCachedCoordinates(address, coordinates);
+  return coordinates;
 };
 
-const getDistanceTimeFromOsrm = async (origin, destination) => {
-  const originCoordinates = await module.exports.getAddressCoordinate(origin);
-  const destinationCoordinates = await module.exports.getAddressCoordinate(destination);
-
+const getDistanceTimeFromOsrmCoordinates = async (originCoordinates, destinationCoordinates) => {
   const url = `https://router.project-osrm.org/route/v1/driving/${originCoordinates.lng},${originCoordinates.ltd};${destinationCoordinates.lng},${destinationCoordinates.ltd}?overview=false`;
 
   const response = await axios.get(url, {
@@ -106,12 +174,29 @@ const getDistanceTimeFromOsrm = async (origin, destination) => {
   };
 };
 
+const getDistanceTimeFromOsrm = async (origin, destination) => {
+  const originCoordinates = await module.exports.getAddressCoordinate(origin);
+  const destinationCoordinates = await module.exports.getAddressCoordinate(destination);
+  return getDistanceTimeFromOsrmCoordinates(originCoordinates, destinationCoordinates);
+};
+
 module.exports.getDistanceTime = async (origin, destination) => {
   if (!origin || !destination) {
     throw new Error("Origin and destination are required");
   }
 
   return await getDistanceTimeFromOsrm(origin, destination);
+};
+
+module.exports.getDistanceTimeByCoordinates = async (originCoordinates, destinationCoordinates) => {
+  const normalizedOrigin = normalizeCoordinateInput(originCoordinates);
+  const normalizedDestination = normalizeCoordinateInput(destinationCoordinates);
+
+  if (!normalizedOrigin || !normalizedDestination) {
+    throw new Error("Valid origin and destination coordinates are required");
+  }
+
+  return getDistanceTimeFromOsrmCoordinates(normalizedOrigin, normalizedDestination);
 };
 
 module.exports.getAutoCompleteSuggestions = async (input) => {

@@ -1246,6 +1246,8 @@ export const riderApi = {
     distanceKm?: number;
     stops?: string[];
     promoCode?: string;
+    pickupCoords?: { lat: number; lon: number } | null;
+    dropoffCoords?: { lat: number; lon: number } | null;
   }) => {
     // Enforce a single active search: cancel any existing pending/accepted search before creating a new one.
     const currentUser = await userProfile();
@@ -1268,6 +1270,12 @@ export const riderApi = {
         vehicleType,
         stops: payload.stops || [],
         promoCode: payload.promoCode?.trim() || undefined,
+        pickupCoordinates: payload.pickupCoords
+          ? { lat: payload.pickupCoords.lat, lon: payload.pickupCoords.lon }
+          : undefined,
+        destinationCoordinates: payload.dropoffCoords
+          ? { lat: payload.dropoffCoords.lat, lon: payload.dropoffCoords.lon }
+          : undefined,
       },
     });
     clearRideFailedFlag(ride._id);

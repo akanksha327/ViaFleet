@@ -82,6 +82,8 @@ module.exports.createRide = async (req, res) => {
 
   const { pickup, destination, vehicleType, promoCode } = req.body;
   const stops = parseStops(req.body.stops);
+  const pickupCoordinates = req.body.pickupCoordinates;
+  const destinationCoordinates = req.body.destinationCoordinates;
 
   try {
     const ride = await rideService.createRide({
@@ -91,6 +93,8 @@ module.exports.createRide = async (req, res) => {
       vehicleType,
       stops,
       promoCode,
+      pickupCoordinates,
+      destinationCoordinates,
     });
 
     const user = await userModel.findOne({ _id: req.user._id });
