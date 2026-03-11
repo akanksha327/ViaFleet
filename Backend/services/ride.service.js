@@ -43,6 +43,9 @@ const DEFAULT_PROMO_CODES = [
   },
 ];
 
+const DRIVER_SEARCH_TIMEOUT_MS = 5 * 60 * 1000;
+const SEARCH_FAILURE_REASON = "no_driver_available";
+
 let defaultPromosEnsured = false;
 
 const formatDistanceText = (meters) => {
@@ -66,6 +69,21 @@ const normalizeStops = (stops) => {
     .map((stop) => (typeof stop === "string" ? stop.trim() : ""))
     .filter((stop) => stop.length >= 3)
     .slice(0, 4);
+};
+
+const buildSearchFailureUpdate = () => ({
+  status: "cancelled",
+  cancellationReason: SEARCH_FAILURE_REASON,
+  searchFailedAt: new Date(),
+});
+
+const isRideSearchExpired = (ride) => {
+  if (!ride || ride.status !== "pending" || !ride.createdAt) {
+    return false;
+  }
+
+  const createdAt = new Date(ride.createdAt).getTime();
+  return Number.isFinite(createdAt) && Date.now() - createdAt >= DRIVER_SEARCH_TIMEOUT_MS;
 };
 
 const getFareByDistanceTime = (distanceTime) => {
@@ -218,13 +236,14 @@ const getClientBaseUrl = () => {
   return fallbackOrigin.replace(/\/+$/, "");
 };
 
-const buildPaymentRedirectUrls = (rideId) => {
+const buildPaymentRedirectUrls = (rideId, rideStatus) => {
   const baseUrl = getClientBaseUrl();
   const encodedRideId = encodeURIComponent(String(rideId));
+  const returnPath = rideStatus === "completed" ? "/rider/history" : "/rider/tracking";
 
   return {
-    successUrl: `${baseUrl}/rider/history?payment=success&rideId=${encodedRideId}&session_id={CHECKOUT_SESSION_ID}`,
-    cancelUrl: `${baseUrl}/rider/history?payment=cancelled&rideId=${encodedRideId}`,
+    successUrl: `${baseUrl}${returnPath}?payment=success&rideId=${encodedRideId}&session_id={CHECKOUT_SESSION_ID}`,
+    cancelUrl: `${baseUrl}${returnPath}?payment=cancelled&rideId=${encodedRideId}`,
   };
 };
 
@@ -333,6 +352,76 @@ module.exports.createRide = async ({
   }
 };
 
+module.exports.DRIVER_SEARCH_TIMEOUT_MS = DRIVER_SEARCH_TIMEOUT_MS;
+module.exports.SEARCH_FAILURE_REASON = SEARCH_FAILURE_REASON;
+module.exports.isRideSearchExpired = isRideSearchExpired;
+
+module.exports.expireRideSearch = async (rideId) => {
+  if (!rideId) {
+    throw new Error("Ride id is required");
+  }
+
+  return rideModel.findOneAndUpdate(
+    { _id: rideId, status: "pending" },
+    buildSearchFailureUpdate(),
+    { new: true }
+  );
+};
+
+module.exports.expirePendingRideSearches = async (filter = {}) => {
+  const result = await rideModel.updateMany(
+    {
+      status: "pending",
+      createdAt: {
+        $lte: new Date(Date.now() - DRIVER_SEARCH_TIMEOUT_MS),
+      },
+      ...filter,
+    },
+    buildSearchFailureUpdate()
+  );
+
+  return Number(result.modifiedCount || 0);
+};
+
+module.exports.declineRide = async ({ rideId, captainId }) => {
+  if (!rideId) {
+    throw new Error("Ride id is required");
+  }
+
+  if (!captainId) {
+    throw new Error("Captain is required");
+  }
+
+  const ride = await rideModel.findOneAndUpdate(
+    { _id: rideId, status: "pending" },
+    {
+      $addToSet: { declinedByCaptains: captainId },
+    },
+    { new: true }
+  );
+
+  if (!ride) {
+    throw new Error("Ride not found or no longer available");
+  }
+
+  return ride;
+};
+
+module.exports.getRideAvailability = async ({ lat, lng, radiusKm = 4 }) => {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    throw new Error("Valid latitude and longitude are required");
+  }
+
+  const byVehicle = await mapService.getCaptainAvailabilityInTheRadius(lat, lng, radiusKm);
+
+  return {
+    radiusKm,
+    byVehicle,
+    total: byVehicle.total,
+    updatedAt: new Date().toISOString(),
+  };
+};
+
 module.exports.confirmRide = async ({ rideId, captain }) => {
   if (!rideId) {
     throw new Error("Ride id is required");
@@ -369,6 +458,11 @@ module.exports.startRide = async ({ rideId, otp, captain }) => {
     throw new Error("Ride id is required");
   }
 
+  const safeOtp = String(otp || "").trim();
+  if (!safeOtp) {
+    throw new Error("OTP is required to start ride");
+  }
+
   const ride = await rideModel
     .findOne({ _id: rideId, captain: captain._id })
     .populate("user")
@@ -383,7 +477,7 @@ module.exports.startRide = async ({ rideId, otp, captain }) => {
     throw new Error("Ride not accepted");
   }
 
-  if (otp && ride.otp !== otp) {
+  if (ride.otp !== safeOtp) {
     throw new Error("Invalid OTP");
   }
 
@@ -394,6 +488,33 @@ module.exports.startRide = async ({ rideId, otp, captain }) => {
     .select("+otp");
 
   return updatedRide;
+};
+
+module.exports.getRideOtpForUser = async ({ rideId, userId }) => {
+  if (!rideId) {
+    throw new Error("Ride id is required");
+  }
+
+  if (!userId) {
+    throw new Error("User is required");
+  }
+
+  const ride = await rideModel
+    .findOne({
+      _id: rideId,
+      user: userId,
+      status: "accepted",
+    })
+    .select("+otp");
+
+  if (!ride) {
+    throw new Error("Accepted ride not found");
+  }
+
+  return {
+    rideId: String(ride._id),
+    otp: String(ride.otp || ""),
+  };
 };
 
 module.exports.endRide = async ({ rideId, captain }) => {
@@ -420,7 +541,12 @@ module.exports.endRide = async ({ rideId, captain }) => {
       { _id: rideId },
       {
         status: "completed",
-        paymentStatus: Number(ride.fare || 0) > 0 ? "pending" : "paid",
+        paymentStatus:
+          ride.paymentStatus === "paid"
+            ? "paid"
+            : Number(ride.fare || 0) > 0
+              ? "pending"
+              : "paid",
         paymentMethod: ride.paymentMethod || "stripe_checkout",
         receiptNo: ride.receiptNo || buildReceiptNo(),
         receiptIssuedAt: ride.receiptIssuedAt || new Date(),
@@ -451,8 +577,8 @@ module.exports.createRidePaymentSession = async ({ rideId, user }) => {
     throw new Error("Ride not found");
   }
 
-  if (ride.status !== "completed") {
-    throw new Error("Payment can be started only after ride completion");
+  if (!["ongoing", "completed"].includes(ride.status)) {
+    throw new Error("Payment is available once the ride has started");
   }
 
   const fareAmount = Number(ride.fare || 0);
@@ -484,7 +610,7 @@ module.exports.createRidePaymentSession = async ({ rideId, user }) => {
     };
   }
 
-  const { successUrl, cancelUrl } = buildPaymentRedirectUrls(ride._id);
+  const { successUrl, cancelUrl } = buildPaymentRedirectUrls(ride._id, ride.status);
   const session = await stripePaymentService.createRideCheckoutSession({
     rideId: ride._id,
     userId: user._id,
@@ -531,8 +657,8 @@ module.exports.confirmRidePayment = async ({ rideId, sessionId, user }) => {
     throw new Error("Ride not found");
   }
 
-  if (ride.status !== "completed") {
-    throw new Error("Payment can be confirmed only for completed rides");
+  if (!["ongoing", "completed"].includes(ride.status)) {
+    throw new Error("Payment can be confirmed only after the ride has started");
   }
 
   if (ride.paymentStatus === "paid") {

@@ -202,6 +202,26 @@ module.exports.confirmRide = async (req, res) => {
       return res.status(404).json({ message: "Ride not found.", code: "RIDE_NOT_FOUND" });
     }
 
+    if (rideService.isRideSearchExpired(rideDetails)) {
+      await rideService.expireRideSearch(rideId);
+      return res.status(410).json({
+        message: "No driver available nearby. This request expired after 5 minutes.",
+        code: "RIDE_SEARCH_EXPIRED",
+      });
+    }
+
+    if (
+      Array.isArray(rideDetails.declinedByCaptains) &&
+      rideDetails.declinedByCaptains.some(
+        (captainId) => String(captainId) === String(req.captain._id)
+      )
+    ) {
+      return res.status(400).json({
+        message: "You already declined this ride request.",
+        code: "RIDE_ALREADY_DECLINED",
+      });
+    }
+
     switch (rideDetails.status) {
       case "accepted":
         return res.status(400).json({
@@ -247,6 +267,52 @@ module.exports.confirmRide = async (req, res) => {
   }
 };
 
+module.exports.declineRide = async (req, res) => {
+  if (!handleValidation(req, res)) {
+    return;
+  }
+
+  const { rideId } = req.body;
+
+  try {
+    const rideDetails = await rideModel.findOne({ _id: rideId });
+
+    if (!rideDetails) {
+      return res.status(404).json({ message: "Ride not found.", code: "RIDE_NOT_FOUND" });
+    }
+
+    if (rideService.isRideSearchExpired(rideDetails)) {
+      await rideService.expireRideSearch(rideId);
+      return res.status(410).json({
+        message: "No driver available nearby. This request expired after 5 minutes.",
+        code: "RIDE_SEARCH_EXPIRED",
+      });
+    }
+
+    if (rideDetails.status !== "pending") {
+      return res.status(400).json({
+        message: "Only pending rides can be declined.",
+        code: "RIDE_CANNOT_BE_DECLINED",
+      });
+    }
+
+    const ride = await rideService.declineRide({
+      rideId,
+      captainId: req.captain._id,
+    });
+
+    return res.status(200).json({
+      _id: ride._id,
+      status: ride.status,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      message: err.message || "Unable to decline ride",
+      code: "RIDE_DECLINE_FAILED",
+    });
+  }
+};
+
 module.exports.startRide = async (req, res) => {
   if (!handleValidation(req, res)) {
     return;
@@ -268,9 +334,37 @@ module.exports.startRide = async (req, res) => {
 
     return res.status(200).json(ride);
   } catch (err) {
-    return res.status(500).json({
+    const statusCode = ["OTP is required to start ride", "Invalid OTP", "Ride not found", "Ride not accepted"].includes(
+      err.message
+    )
+      ? 400
+      : 500;
+
+    return res.status(statusCode).json({
       message: err.message || "Unable to start ride",
       code: "RIDE_START_FAILED",
+    });
+  }
+};
+
+module.exports.getRideOtp = async (req, res) => {
+  if (!handleValidation(req, res)) {
+    return;
+  }
+
+  const { rideId } = req.params;
+
+  try {
+    const otpDetails = await rideService.getRideOtpForUser({
+      rideId,
+      userId: req.user._id,
+    });
+
+    return res.status(200).json(otpDetails);
+  } catch (error) {
+    return res.status(400).json({
+      message: error.message || "Unable to fetch ride OTP",
+      code: "RIDE_OTP_FETCH_FAILED",
     });
   }
 };
@@ -378,6 +472,8 @@ module.exports.getPendingRidesForCaptain = async (req, res) => {
   const radiusKm = Number.isFinite(queryRadius) && queryRadius > 0 ? queryRadius : 4;
 
   try {
+    await rideService.expirePendingRideSearches();
+
     const captain = await captainModel
       .findOne({ _id: req.captain._id })
       .select("location vehicle.type");
@@ -398,6 +494,7 @@ module.exports.getPendingRidesForCaptain = async (req, res) => {
     const baseRideQuery = {
       status: "pending",
       vehicle: captain.vehicle?.type,
+      declinedByCaptains: { $nin: [req.captain._id] },
     };
 
     const ridesQuery = hasUsableCaptainLocation
@@ -449,6 +546,32 @@ module.exports.getPendingRidesForCaptain = async (req, res) => {
     return res.status(500).json({
       message: err.message || "Unable to fetch pending rides",
       code: "PENDING_RIDES_FETCH_FAILED",
+    });
+  }
+};
+
+module.exports.getRideAvailability = async (req, res) => {
+  if (!handleValidation(req, res)) {
+    return;
+  }
+
+  const queryRadius = Number(req.query.radius || 4);
+  const radiusKm = Number.isFinite(queryRadius) && queryRadius > 0 ? queryRadius : 4;
+  const lat = Number(req.query.lat);
+  const lng = Number(req.query.lng);
+
+  try {
+    const availability = await rideService.getRideAvailability({
+      lat,
+      lng,
+      radiusKm,
+    });
+
+    return res.status(200).json(availability);
+  } catch (err) {
+    return res.status(500).json({
+      message: err.message || "Unable to fetch nearby vehicle availability",
+      code: "RIDE_AVAILABILITY_FETCH_FAILED",
     });
   }
 };

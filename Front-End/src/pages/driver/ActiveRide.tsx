@@ -9,6 +9,7 @@ import { toast } from "@/components/ui/sonner";
 const DriverActiveRidePage = () => {
   const queryClient = useQueryClient();
   const [eta, setEta] = useState(0);
+  const [rideOtp, setRideOtp] = useState("");
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["driver", "active-ride"],
@@ -62,6 +63,9 @@ const DriverActiveRidePage = () => {
   useEffect(() => {
     if (!data) return;
     setEta(data.etaSeconds);
+    if (data.rideStatus !== "accepted") {
+      setRideOtp("");
+    }
   }, [data]);
 
   useEffect(() => {
@@ -90,6 +94,20 @@ const DriverActiveRidePage = () => {
       </div>
     );
   }
+
+  const sanitizedOtp = rideOtp.replace(/\D/g, "").slice(0, 6);
+
+  const handleStartRide = () => {
+    if (sanitizedOtp.length !== 6) {
+      toast.error("Enter the 6-digit rider OTP before starting the ride");
+      return;
+    }
+
+    startRideMutation.mutate({
+      rideId: data.id,
+      otp: sanitizedOtp,
+    });
+  };
 
   return (
     <motion.section
@@ -142,14 +160,36 @@ const DriverActiveRidePage = () => {
             <ShieldAlert size={14} /> Safety Assistance
           </button>
           {data.rideStatus === "accepted" ? (
-            <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-3">
+              <div className="rounded-lg border border-primary/20 bg-primary/10 p-3">
+                <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                  Verify Rider OTP
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Ask the rider for the 6-digit OTP shown in their app before pickup.
+                </p>
+                <input
+                  value={rideOtp}
+                  onChange={(event) => setRideOtp(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  placeholder="Enter OTP"
+                  className="mt-3 h-11 w-full rounded-lg border border-border bg-background px-4 text-center font-mono text-lg tracking-[0.28em] outline-none transition-colors focus:border-primary"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => startRideMutation.mutate(data.id)}
-                disabled={startRideMutation.isPending || cancelRideMutation.isPending}
+                onClick={handleStartRide}
+                disabled={
+                  startRideMutation.isPending ||
+                  cancelRideMutation.isPending ||
+                  sanitizedOtp.length !== 6
+                }
                 className="h-10 rounded-lg border border-primary bg-primary text-primary-foreground text-sm font-semibold transition-[transform,filter] duration-180 ease-smooth hover:brightness-95 hover:-translate-y-0.5 disabled:opacity-70 disabled:pointer-events-none"
               >
-                {startRideMutation.isPending ? "Starting..." : "Rider Picked Up"}
+                {startRideMutation.isPending ? "Verifying..." : "Verify & Start"}
               </button>
               <button
                 type="button"
@@ -159,6 +199,7 @@ const DriverActiveRidePage = () => {
               >
                 {cancelRideMutation.isPending ? "Cancelling..." : "Cancel Ride"}
               </button>
+              </div>
             </div>
           ) : (
             <button

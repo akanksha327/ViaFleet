@@ -41,7 +41,6 @@ module.exports.createRideCheckoutSession = async ({
 
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
-    payment_method_types: ["card"],
     customer_email: userEmail || undefined,
     line_items: [
       {

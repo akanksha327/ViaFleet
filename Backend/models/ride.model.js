@@ -66,6 +66,19 @@ const rideSchema = new mongoose.Schema(
       enum: ["pending", "accepted", "ongoing", "completed", "cancelled"],
       default: "pending",
     },
+    declinedByCaptains: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Captain",
+      },
+    ],
+    cancellationReason: {
+      type: String,
+      enum: ["user_cancelled", "driver_cancelled", "no_driver_available"],
+    },
+    searchFailedAt: {
+      type: Date,
+    },
     duration: {
       type: Number,
     }, // in seconds

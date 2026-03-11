@@ -39,11 +39,26 @@ router.post('/confirm',
     rideController.confirmRide
 )
 
+router.post('/decline',
+    authMiddleware.authCaptain,
+    body('rideId').isMongoId().withMessage('Invalid ride id'),
+    rideController.declineRide
+)
+
 router.get(
     '/pending-for-captain',
     authMiddleware.authCaptain,
     query('radius').optional().isFloat({ gt: 0, lte: 20 }).withMessage('Invalid radius'),
     rideController.getPendingRidesForCaptain
+)
+
+router.get(
+    '/availability',
+    authMiddleware.authUser,
+    query('lat').isFloat({ min: -90, max: 90 }).withMessage('Invalid latitude'),
+    query('lng').isFloat({ min: -180, max: 180 }).withMessage('Invalid longitude'),
+    query('radius').optional().isFloat({ gt: 0, lte: 20 }).withMessage('Invalid radius'),
+    rideController.getRideAvailability
 )
 
 
@@ -56,8 +71,14 @@ router.get('/cancel',
 router.get('/start-ride',
     authMiddleware.authCaptain,
     query('rideId').isMongoId().withMessage('Invalid ride id'),
-    query('otp').optional().isString().isLength({ min: 6, max: 6 }).withMessage('Invalid OTP'),
+    query('otp').isString().isLength({ min: 6, max: 6 }).withMessage('Invalid OTP'),
     rideController.startRide
+)
+
+router.get('/otp/:rideId',
+    authMiddleware.authUser,
+    param('rideId').isMongoId().withMessage('Invalid ride id'),
+    rideController.getRideOtp
 )
 
 router.post('/end-ride',

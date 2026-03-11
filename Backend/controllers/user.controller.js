@@ -1,6 +1,7 @@
 const asyncHandler = require("express-async-handler");
 const userModel = require("../models/user.model");
 const userService = require("../services/user.service");
+const rideService = require("../services/ride.service");
 const { validationResult } = require("express-validator");
 const blacklistTokenModel = require("../models/blacklistToken.model");
 const jwt = require("jsonwebtoken");
@@ -257,7 +258,32 @@ module.exports.loginUser = asyncHandler(async (req, res) => {
 });
 
 module.exports.userProfile = asyncHandler(async (req, res) => {
-  res.status(200).json({ user: req.user });
+  const expiredCount = await rideService.expirePendingRideSearches({ user: req.user._id });
+
+  if (!expiredCount) {
+    return res.status(200).json({ user: req.user });
+  }
+
+  const refreshedUser = await userModel.findOne({ _id: req.user._id }).populate("rides");
+
+  if (!refreshedUser) {
+    return res.status(404).json({ message: "User not found" });
+  }
+
+  return res.status(200).json({
+    user: {
+      _id: refreshedUser._id,
+      fullname: {
+        firstname: refreshedUser.fullname.firstname,
+        lastname: refreshedUser.fullname.lastname,
+      },
+      email: refreshedUser.email,
+      phone: refreshedUser.phone,
+      rides: refreshedUser.rides,
+      socketId: refreshedUser.socketId,
+      emailVerified: refreshedUser.emailVerified || false,
+    },
+  });
 });
 
 module.exports.updateUserProfile = asyncHandler(async (req, res) => {

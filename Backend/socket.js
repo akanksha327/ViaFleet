@@ -66,7 +66,10 @@ function initializeSocket(server) {
         if (userType === "user") {
           await userModel.findByIdAndUpdate(userId, { socketId: socket.id });
         } else if (userType === "captain") {
-          await captainModel.findByIdAndUpdate(userId, { socketId: socket.id });
+          await captainModel.findByIdAndUpdate(userId, {
+            socketId: socket.id,
+            status: "active",
+          });
         }
       } catch (error) {
         debugError("join handler error:", error.message);
@@ -127,6 +130,29 @@ function initializeSocket(server) {
       } catch (error) {
         debugError("Error saving message: ", error);
       }
+    });
+
+    socket.on("disconnect", async () => {
+      try {
+        if (db.readyState !== 1) {
+          return;
+        }
+
+        await Promise.all([
+          userModel.updateOne({ socketId: socket.id }, { $unset: { socketId: "" } }),
+          captainModel.updateOne(
+            { socketId: socket.id },
+            {
+              $unset: { socketId: "" },
+              $set: { status: "inactive" },
+            }
+          ),
+        ]);
+      } catch (error) {
+        debugError("disconnect handler error:", error.message);
+      }
+
+      debugLog(`Client disconnected: ${socket.id}`);
     });
   });
 }

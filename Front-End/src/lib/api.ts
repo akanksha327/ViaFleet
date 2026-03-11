@@ -32,6 +32,9 @@ type BackendRide = {
   promoDiscount?: number;
   vehicle?: BackendVehicleType;
   status?: "pending" | "accepted" | "ongoing" | "completed" | "cancelled";
+  declinedByCaptains?: string[];
+  cancellationReason?: "user_cancelled" | "driver_cancelled" | "no_driver_available";
+  searchFailedAt?: string;
   duration?: number;
   distance?: number;
   paymentMethod?: string;
@@ -734,10 +737,24 @@ export interface RiderTrackingData {
   driverName: string;
   car: string;
   plate: string;
+  otp: string | null;
+  fare: number;
   etaSeconds: number;
-  rideStatus: "searching" | "accepted" | "ongoing";
+  rideStatus: "searching" | "accepted" | "ongoing" | "failed";
   statusText: string;
   canCancel: boolean;
+  paymentMethod: string;
+  paymentStatus: "pending" | "paid" | "failed";
+  canPay: boolean;
+}
+
+export interface NearbyVehicleAvailability {
+  auto: number;
+  car: number;
+  bike: number;
+  total: number;
+  radiusKm: number;
+  updatedAt: string | null;
 }
 
 export interface DriverRideRequest {
@@ -946,7 +963,8 @@ const toRiderHistory = (ride: BackendRide, userId: string): RiderHistoryItem => 
   hasReceipt: ride.status === "completed",
   ratingScore: Number.isFinite(ride.rating?.score) ? Number(ride.rating?.score) : null,
   status:
-    ride.status === "cancelled" && isRideFailed(ride._id)
+    ride.status === "cancelled" &&
+    (ride.cancellationReason === "no_driver_available" || isRideFailed(ride._id))
       ? "Failed"
       : ride.status === "cancelled"
       ? "Cancelled"
@@ -1051,7 +1069,34 @@ export const riderApi = {
     const rides = sortNewest(user.rides || []);
     const active = rides.find((ride) => ["pending", "accepted", "ongoing"].includes(ride.status || ""));
 
-    if (!active) return null;
+    if (!active) {
+      const latestRide = rides[0];
+      const failedSearchRecently =
+        latestRide?.status === "cancelled" &&
+        (latestRide.cancellationReason === "no_driver_available" || isRideFailed(latestRide._id)) &&
+        Date.now() - rideTime(latestRide) <= 30 * 60 * 1000;
+
+      if (!failedSearchRecently || !latestRide) {
+        return null;
+      }
+
+      return {
+        userId: String(user._id),
+        rideId: latestRide._id,
+        driverName: "No driver nearby",
+        car: `${cap(latestRide.vehicle) || "Ride"} search ended`,
+        plate: "--",
+        otp: null,
+        fare: Number(latestRide.fare || 0),
+        etaSeconds: 0,
+        rideStatus: "failed",
+        statusText: "No driver accepted this ride within 5 minutes.",
+        canCancel: false,
+        paymentMethod: latestRide.paymentMethod || "stripe_checkout",
+        paymentStatus: latestRide.paymentStatus || "pending",
+        canPay: false,
+      };
+    }
 
     let driverName = "Searching for driver";
     let plate = "--";
@@ -1099,6 +1144,12 @@ export const riderApi = {
         : rideStatus === "accepted"
           ? "Driver accepted. Heading to pickup."
           : "Ride in progress";
+    const otp =
+      rideStatus === "accepted"
+        ? await request<{ rideId: string; otp: string }>(`/ride/otp/${encodeURIComponent(active._id)}`)
+            .then((response) => response.otp || null)
+            .catch(() => null)
+        : null;
 
     return {
       userId: String(user._id),
@@ -1106,10 +1157,18 @@ export const riderApi = {
       driverName,
       car: active.status === "pending" ? "Matching nearby drivers" : `${cap(active.vehicle) || "Cab"} ride`,
       plate,
+      otp,
+      fare: Number(active.fare || 0),
       etaSeconds,
       rideStatus,
       statusText,
       canCancel: rideStatus === "searching" || rideStatus === "accepted",
+      paymentMethod: active.paymentMethod || "stripe_checkout",
+      paymentStatus: active.paymentStatus || "pending",
+      canPay:
+        rideStatus === "ongoing" &&
+        Number(active.fare || 0) > 0 &&
+        (active.paymentStatus || "pending") !== "paid",
     };
   },
 
@@ -1189,7 +1248,7 @@ export const riderApi = {
     if (activeSearchRide?._id) {
       const cancelQs = new URLSearchParams({ rideId: activeSearchRide._id }).toString();
       await request<BackendRide>(`/ride/cancel?${cancelQs}`);
-      markRideFailed(activeSearchRide._id);
+      clearRideFailedFlag(activeSearchRide._id);
     }
 
     const vehicleType = toBackendVehicle(payload.rideTypeId);
@@ -1211,12 +1270,41 @@ export const riderApi = {
   cancelBooking: async (bookingId: string) => {
     const qs = new URLSearchParams({ rideId: bookingId }).toString();
     const ride = await request<BackendRide>(`/ride/cancel?${qs}`);
+    clearRideFailedFlag(ride._id);
     const session = getSession();
     return toRiderHistory(ride, session?.user?.id || "");
   },
 
   getFareEstimate: (payload: { pickup: string; destination: string; stops?: string[] }) =>
     fareEstimate(payload.pickup, payload.destination, payload.stops),
+
+  getNearbyVehicleAvailability: async (payload: {
+    lat: number;
+    lng: number;
+    radiusKm?: number;
+  }): Promise<NearbyVehicleAvailability> => {
+    const qs = new URLSearchParams({
+      lat: String(payload.lat),
+      lng: String(payload.lng),
+      radius: String(payload.radiusKm ?? 4),
+    }).toString();
+
+    const response = await request<{
+      radiusKm?: number;
+      total?: number;
+      updatedAt?: string | null;
+      byVehicle?: Partial<Record<BackendVehicleType, number>>;
+    }>(`/ride/availability?${qs}`);
+
+    return {
+      auto: Number(response.byVehicle?.auto || 0),
+      car: Number(response.byVehicle?.car || 0),
+      bike: Number(response.byVehicle?.bike || 0),
+      total: Number(response.total || 0),
+      radiusKm: Number(response.radiusKm || payload.radiusKm || 4),
+      updatedAt: response.updatedAt || null,
+    };
+  },
 
   applyPromoCode: async (payload: {
     pickup: string;
@@ -1708,8 +1796,11 @@ export const driverApi = {
     };
   },
 
-  startRide: async (rideId: string): Promise<DriverActiveRide> => {
-    const qs = new URLSearchParams({ rideId }).toString();
+  startRide: async (payload: { rideId: string; otp: string }): Promise<DriverActiveRide> => {
+    const qs = new URLSearchParams({
+      rideId: payload.rideId,
+      otp: payload.otp.trim(),
+    }).toString();
     const ride = await request<BackendRide>(`/ride/start-ride?${qs}`);
 
     return {
@@ -1752,7 +1843,11 @@ export const driverApi = {
   },
 
   declineRequest: async (requestId: string) => {
+    const ride = await request<BackendRide>("/ride/decline", {
+      method: "POST",
+      body: { rideId: requestId },
+    });
     driverRequestStore = driverRequestStore.filter((r) => r._id !== requestId);
-    return { id: requestId };
+    return { id: ride._id };
   },
 };

@@ -22,6 +22,27 @@ const formatDurationText = (seconds) => {
   return `${roundedMinutes} min`;
 };
 
+const buildLiveCaptainRadiusQuery = (ltd, lng, radius, vehicleType) => {
+  const query = {
+    location: {
+      $geoWithin: {
+        $centerSphere: [[lng, ltd], radius / 6371],
+      },
+    },
+    status: "active",
+    socketId: {
+      $exists: true,
+      $nin: [null, ""],
+    },
+  };
+
+  if (vehicleType) {
+    query["vehicle.type"] = vehicleType;
+  }
+
+  return query;
+};
+
 const getAddressCoordinateFromNominatim = async (address) => {
   const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(
     address
@@ -123,16 +144,45 @@ module.exports.getCaptainsInTheRadius = async (ltd, lng, radius, vehicleType) =>
   // radius in km
   
   try {
-    const captains = await captainModel.find({
-      location: {
-        $geoWithin: {
-          $centerSphere: [[lng, ltd], radius / 6371],
-        },
-      },
-      "vehicle.type": vehicleType,
-    });
+    const captains = await captainModel.find(
+      buildLiveCaptainRadiusQuery(ltd, lng, radius, vehicleType)
+    );
     return captains;
   } catch (error) {
     throw new Error("Error in getting captain in radius: " + error.message);
+  }
+};
+
+module.exports.getCaptainAvailabilityInTheRadius = async (ltd, lng, radius) => {
+  try {
+    const groupedCounts = await captainModel.aggregate([
+      {
+        $match: buildLiveCaptainRadiusQuery(ltd, lng, radius),
+      },
+      {
+        $group: {
+          _id: "$vehicle.type",
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const availability = {
+      auto: 0,
+      car: 0,
+      bike: 0,
+      total: 0,
+    };
+
+    groupedCounts.forEach((entry) => {
+      if (entry?._id === "auto" || entry?._id === "car" || entry?._id === "bike") {
+        availability[entry._id] = Number(entry.count || 0);
+        availability.total += Number(entry.count || 0);
+      }
+    });
+
+    return availability;
+  } catch (error) {
+    throw new Error("Error in getting captain availability: " + error.message);
   }
 };

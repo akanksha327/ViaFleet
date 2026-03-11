@@ -20,7 +20,7 @@ import AnimatedCounter from "@/components/ui/AnimatedCounter";
 import MagneticButton from "@/components/ui/MagneticButton";
 import RiderMap from "@/components/map/RiderMap";
 import { cn } from "@/lib/utils";
-import { riderApi, toApiErrorMessage } from "@/lib/api";
+import { riderApi, toApiErrorMessage, type NearbyVehicleAvailability } from "@/lib/api";
 import { toast } from "@/components/ui/sonner";
 
 type LocationSuggestion = {
@@ -66,15 +66,6 @@ const RIDE_ETA_RULES: Record<string, { avgSpeedKmh: number; serviceDelayMin: num
   economy: { avgSpeedKmh: 26, serviceDelayMin: 3, minimumMinutes: 5 },
   comfort: { avgSpeedKmh: 30, serviceDelayMin: 2.5, minimumMinutes: 4 },
   premium: { avgSpeedKmh: 34, serviceDelayMin: 2, minimumMinutes: 4 },
-};
-const RIDE_AVAILABILITY_RULES: Record<string, { base: number; variance: number; min: number; max: number }> = {
-  moto: { base: 14, variance: 10, min: 4, max: 28 },
-  auto: { base: 10, variance: 8, min: 3, max: 20 },
-  sedan: { base: 8, variance: 6, min: 2, max: 16 },
-  xl: { base: 4, variance: 4, min: 1, max: 9 },
-  economy: { base: 8, variance: 6, min: 2, max: 16 },
-  comfort: { base: 5, variance: 4, min: 1, max: 10 },
-  premium: { base: 3, variance: 3, min: 0, max: 7 },
 };
 const RIDE_VISUAL_META: Record<string, RideVisualMeta> = {
   moto: {
@@ -502,27 +493,45 @@ const calculateRouteBasedEta = (rideTypeId: string, distanceKm: number, fallback
   return `${safeMinutes} min`;
 };
 
-const hashRideType = (rideTypeId: string) =>
-  Array.from(rideTypeId).reduce((sum, char) => sum + char.charCodeAt(0), 0);
-
-const calculateNearbyAvailability = (rideTypeId: string, lat: number, lon: number) => {
-  const rule = RIDE_AVAILABILITY_RULES[rideTypeId];
-  if (!rule) return null;
-
-  const seed = Math.sin(lat * 12.9898 + lon * 78.233 + hashRideType(rideTypeId) * 0.13758);
-  const normalized = Math.abs(seed);
-  const fluctuated = Math.round(rule.base + normalized * rule.variance - rule.variance / 2);
-
-  return Math.max(rule.min, Math.min(rule.max, fluctuated));
-};
-
 const getRideVisualMeta = (rideTypeId: string) => RIDE_VISUAL_META[rideTypeId] ?? DEFAULT_RIDE_VISUAL_META;
 
-const formatRideAvailability = (rideTypeId: string, nearbyCount: number | null) => {
+const getNearbyAvailabilityCount = (
+  rideTypeId: string,
+  availability: NearbyVehicleAvailability | null | undefined
+) => {
+  if (!availability) {
+    return null;
+  }
+
+  if (rideTypeId === "moto") {
+    return availability.bike;
+  }
+
+  if (rideTypeId === "auto") {
+    return availability.auto;
+  }
+
+  return availability.car;
+};
+
+const formatRideAvailability = (
+  rideTypeId: string,
+  nearbyCount: number | null,
+  options?: {
+    hasLocation?: boolean;
+    liveAvailabilityUnavailable?: boolean;
+  }
+) => {
   const visualMeta = getRideVisualMeta(rideTypeId);
 
   if (nearbyCount === null) {
-    return "Use current location to see nearby availability";
+    if (options?.liveAvailabilityUnavailable) {
+      return "Live availability is unavailable right now";
+    }
+
+    return options?.hasLocation
+      ? "Checking nearby availability..."
+      : "Use current location to see nearby availability";
   }
 
   if (nearbyCount === 0) {
@@ -770,6 +779,26 @@ const RiderDashboardPage = () => {
         : pickupCoords,
     [locationBias?.lat, locationBias?.lon, pickupCoords]
   );
+  const hasReferenceLocation = Boolean(riderReferenceLocation);
+
+  const nearbyAvailabilityQuery = useQuery({
+    queryKey: [
+      "rider",
+      "availability",
+      riderReferenceLocation?.lat ?? null,
+      riderReferenceLocation?.lon ?? null,
+    ],
+    queryFn: () =>
+      riderApi.getNearbyVehicleAvailability({
+        lat: riderReferenceLocation!.lat,
+        lng: riderReferenceLocation!.lon,
+      }),
+    enabled: hasReferenceLocation,
+    refetchInterval: 10000,
+    staleTime: 5000,
+  });
+  const liveAvailabilityUnavailable =
+    hasReferenceLocation && Boolean(nearbyAvailabilityQuery.error);
 
   const nearbyAvailabilityByRideType = useMemo<Record<string, number | null>>(() => {
     const rideTypes = data?.rideOptions ?? [];
@@ -780,10 +809,10 @@ const RiderDashboardPage = () => {
     return Object.fromEntries(
       rideTypes.map((ride) => [
         ride.id,
-        calculateNearbyAvailability(ride.id, riderReferenceLocation.lat, riderReferenceLocation.lon),
+        getNearbyAvailabilityCount(ride.id, nearbyAvailabilityQuery.data),
       ])
     );
-  }, [data?.rideOptions, riderReferenceLocation]);
+  }, [data?.rideOptions, nearbyAvailabilityQuery.data, riderReferenceLocation]);
 
   const baseEstimatedFare = useMemo(() => {
     if (!selected || effectiveDistanceKm === null) return null;
@@ -802,7 +831,10 @@ const RiderDashboardPage = () => {
       ? nearbyAvailabilityByRideType[selected.id]
       : null;
   const selectedRideAvailabilityLabel = selected
-    ? formatRideAvailability(selected.id, selectedRideNearbyCount)
+    ? formatRideAvailability(selected.id, selectedRideNearbyCount, {
+        hasLocation: hasReferenceLocation,
+        liveAvailabilityUnavailable,
+      })
     : "Select a ride type to view nearby availability";
   const selectedRideEta = selected
     ? effectiveDistanceKm !== null
@@ -810,14 +842,14 @@ const RiderDashboardPage = () => {
       : selected.eta
     : "Select a ride";
   const totalNearbyVehicles = useMemo(() => {
-    const availableCounts = Object.values(nearbyAvailabilityByRideType).filter(
-      (count): count is number => typeof count === "number"
-    );
-    if (availableCounts.length === 0) {
+    if (!hasReferenceLocation || liveAvailabilityUnavailable) {
       return null;
     }
-    return availableCounts.reduce((sum, count) => sum + count, 0);
-  }, [nearbyAvailabilityByRideType]);
+    if (!nearbyAvailabilityQuery.data) {
+      return null;
+    }
+    return nearbyAvailabilityQuery.data.total;
+  }, [hasReferenceLocation, liveAvailabilityUnavailable, nearbyAvailabilityQuery.data]);
 
   const currentMapLocation = useMemo(
     () =>
@@ -1288,7 +1320,13 @@ const RiderDashboardPage = () => {
           <div className="rounded-xl border border-border bg-secondary/60 px-3 py-2">
             <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Total Nearby</p>
             <p className="text-sm font-semibold">
-              {totalNearbyVehicles === null ? "Enable location" : `${totalNearbyVehicles} vehicles`}
+              {!hasReferenceLocation
+                ? "Enable location"
+                : liveAvailabilityUnavailable
+                  ? "Unavailable"
+                  : totalNearbyVehicles === null
+                    ? "Checking..."
+                    : `${totalNearbyVehicles} vehicles`}
             </p>
           </div>
         </div>
@@ -1302,7 +1340,10 @@ const RiderDashboardPage = () => {
                 ? calculateRouteBasedEta(ride.id, effectiveDistanceKm, ride.eta)
                 : ride.eta;
             const nearbyCount = nearbyAvailabilityByRideType[ride.id];
-            const availabilityLabel = formatRideAvailability(ride.id, nearbyCount);
+            const availabilityLabel = formatRideAvailability(ride.id, nearbyCount, {
+              hasLocation: hasReferenceLocation,
+              liveAvailabilityUnavailable,
+            });
             const previewFare =
               effectiveDistanceKm !== null
                 ? calculateRouteBasedFare(ride.id, effectiveDistanceKm, ride.fare)
