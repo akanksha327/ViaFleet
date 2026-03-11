@@ -116,7 +116,7 @@ app.use((error, req, res, next) => {
   const message =
     status >= 500 ? "Internal server error" : error?.message || "Request failed";
 
-  if (!isProduction() && status >= 500) {
+  if (status >= 500) {
     console.error(error);
   }
 

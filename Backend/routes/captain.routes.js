@@ -3,8 +3,10 @@ const router = express.Router();
 const captainController = require("../controllers/captain.controller");
 const { body } = require("express-validator");
 const { authCaptain } = require("../middlewares/auth.middleware");
+const { requireDbReady } = require("../middlewares/db.middleware");
 
 router.post("/register",
+    requireDbReady,
     body("email").isEmail().withMessage("Invalid Email"),
     body("password").isLength({ min: 8 }).withMessage("Password must be at least 8 characters long"),
     body("phone").isLength({ min: 10, max: 10 }).withMessage("Phone Number should be of 10 characters only"),
@@ -21,6 +23,7 @@ router.post("/register",
 router.post("/verify-email", captainController.verifyEmail);
 
 router.post("/login", 
+    requireDbReady,
     body("email").isEmail().withMessage("Invalid Email"),
     captainController.loginCaptain
 );
