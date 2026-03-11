@@ -73,6 +73,14 @@ app.get("/ping", (req, res) => {
   return res.status(200).send("Server is alive");
 });
 
+app.get("/cron/ping", (req, res) => {
+  return res.status(200).json({
+    status: "ok",
+    message: "Cron ping received",
+    timestamp: new Date().toISOString(),
+  });
+});
+
 app.get("/readyz", (req, res) => {
   if (db.readyState === 1) {
     return res.status(200).json({ status: "ready" });

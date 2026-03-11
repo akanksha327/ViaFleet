@@ -5,8 +5,8 @@ const interval = process.env.RELOAD_INTERVAL;
 
 function reloadWebsite() {
   axios
-    .get(SERVER_URL + "/reload")
-    .then((response) => {})
+    .get(SERVER_URL + "/healthz")
+    .then(() => {})
     .catch((error) => {
       console.log("Error reloading server");
     });
