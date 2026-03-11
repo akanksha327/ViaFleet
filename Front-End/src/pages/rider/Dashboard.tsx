@@ -1081,7 +1081,7 @@ const RiderDashboardPage = () => {
           <div className="space-y-1">
             <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Ride Now</p>
             <h2 className="text-2xl font-display font-semibold leading-tight">
-              Uber-style booking with nearby taxi types
+              Fast booking with nearby taxi types
             </h2>
             <p className="text-sm text-muted-foreground">
               Pick your taxi category and book from what is available near your location.
